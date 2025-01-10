@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"net/http"
 )
 
@@ -25,13 +24,11 @@ func (s *Server) initRoute(mux *http.ServeMux) {
 	mux.HandleFunc("POST /", func(w http.ResponseWriter, r *http.Request) {})
 }
 
-func (s *Server) Run() {
+func (s *Server) Run() error {
 
 	mux := http.NewServeMux()
 	s.initRoute(mux)
 
-	err := http.ListenAndServe(APP_PORT, mux)
-	if err != nil {
-		log.Fatal(err.Error())
-	}
+	return http.ListenAndServe(APP_PORT, mux)
+
 }
