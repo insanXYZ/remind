@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
 )
 
@@ -9,17 +11,22 @@ const (
 )
 
 type Server struct {
-	cacheRemindMap map[int]RemindData
+	cacheRemindMap map[Id]RemindData
 }
 
-func NewServer(loadedRemindData map[int]RemindData) *Server {
+func NewServer(loadedRemindData map[Id]RemindData) *Server {
 	return &Server{
 		cacheRemindMap: loadedRemindData,
 	}
 }
 
 func (s *Server) initRoute(mux *http.ServeMux) {
-	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {})
+	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
+		err := json.NewEncoder(w).Encode(s.cacheRemindMap)
+		if err != nil {
+			fmt.Fprint(w, ErrGetCacheRemindData)
+		}
+	})
 	mux.HandleFunc("DELETE /", func(http.ResponseWriter, *http.Request) {})
 	mux.HandleFunc("POST /", func(w http.ResponseWriter, r *http.Request) {})
 }
@@ -28,7 +35,7 @@ func (s *Server) Run() error {
 
 	mux := http.NewServeMux()
 	s.initRoute(mux)
-
+	WriteLog(fmt.Sprintf(SuccRunServer+" , port %s", APP_PORT))
 	return http.ListenAndServe(APP_PORT, mux)
 
 }
