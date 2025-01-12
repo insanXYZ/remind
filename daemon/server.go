@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
+	"time"
 )
 
 const (
@@ -11,24 +13,27 @@ const (
 )
 
 type Server struct {
-	cacheRemindMap map[Id]RemindData
+	lastId         int
+	cacheRemindMap map[Id]*RemindData
 }
 
-func NewServer(loadedRemindData map[Id]RemindData) *Server {
+func NewServer(loadedRemindData map[Id]*RemindData, lastId int) *Server {
 	return &Server{
+		lastId:         lastId,
 		cacheRemindMap: loadedRemindData,
 	}
 }
 
+func (s *Server) incLastId() int {
+	s.lastId += 1
+	return s.lastId
+}
+
 func (s *Server) initRoute(mux *http.ServeMux) {
-	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
-		err := json.NewEncoder(w).Encode(s.cacheRemindMap)
-		if err != nil {
-			fmt.Fprint(w, ErrGetCacheRemindData)
-		}
-	})
-	mux.HandleFunc("DELETE /", func(http.ResponseWriter, *http.Request) {})
-	mux.HandleFunc("POST /", func(w http.ResponseWriter, r *http.Request) {})
+	mux.HandleFunc("GET /", s.ListController)
+	mux.HandleFunc("DELETE /", s.DeleteController)
+	mux.HandleFunc("PATCH /", s.CheckController)
+	mux.HandleFunc("POST /", s.SetController)
 }
 
 func (s *Server) Run() error {
@@ -38,4 +43,91 @@ func (s *Server) Run() error {
 	WriteLog(fmt.Sprintf(SuccRunServer+" , port %s", APP_PORT))
 	return http.ListenAndServe(APP_PORT, mux)
 
+}
+
+// CONTROLLER
+
+func (s *Server) ListController(w http.ResponseWriter, r *http.Request) {
+	err := json.NewEncoder(w).Encode(s.cacheRemindMap)
+	if err != nil {
+		fmt.Fprint(w, err.Error())
+	}
+}
+
+func (s *Server) CheckController(w http.ResponseWriter, r *http.Request) {
+
+}
+
+func (s *Server) DeleteController(w http.ResponseWriter, r *http.Request) {
+
+}
+
+func (s *Server) SetController(w http.ResponseWriter, r *http.Request) {
+	req := new(CreateRequest)
+	now := time.Now()
+
+	err := json.NewDecoder(r.Body).Decode(req)
+	if err != nil {
+		fmt.Fprint(w, err.Error())
+		return
+	}
+
+	req.Name, req.Type, req.Time, req.Date = TrimSpace(req.Name), TrimSpace(req.Type), TrimSpace(req.Time), TrimSpace(req.Date)
+
+	if req.Name == "" {
+		fmt.Fprint(w, err.Error())
+		return
+	}
+
+	if strings.Contains(req.Name, ":") {
+		split := strings.Split(req.Name, ":")
+		if len(split) > 1 {
+			req.Title = split[0]
+			req.Name = split[1]
+		} else {
+			req.Name = split[0]
+		}
+	}
+
+	if req.Type == "" {
+		req.Type = string(ALARM)
+	}
+
+	if req.Type == string(ALARM) || req.Type == string(TASK) {
+		if req.Date == "" {
+			req.Date = now.Format(time.DateOnly)
+		}
+
+		remindData := &RemindData{
+			Id:    s.incLastId(),
+			Title: req.Title,
+			Name:  req.Name,
+			Time:  req.Time,
+			Date:  req.Date,
+			Type:  RemindType(req.Type),
+		}
+
+		err = s.Set(remindData)
+		if err != nil {
+			fmt.Fprint(w, err.Error())
+		}
+		fmt.Fprint(w, SuccSetRemind)
+
+	} else {
+		fmt.Fprint(w, ErrSetRemind)
+		fmt.Fprint(w, ErrWrongType)
+		return
+	}
+
+}
+
+func (s *Server) Set(data *RemindData) error {
+	s.cacheRemindMap[data.Id] = data
+
+	b, err := json.Marshal(s.cacheRemindMap)
+	if err != nil {
+		return err
+	}
+
+	return WriteFile(APP_DATA_FILENAME, string(b), false)
 }

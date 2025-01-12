@@ -8,11 +8,12 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
 func ReadFile(filename string) ([]byte, error) {
-	file, err := OpenFile(filename)
+	file, err := OpenFile(filename, false)
 	if err != nil {
 		return nil, err
 	}
@@ -35,15 +36,18 @@ func WriteFatalLog(err error) {
 	log.Fatal(err)
 }
 
-func OpenFile(filename string) (*os.File, error) {
-	return os.OpenFile(JoinPath(ROOT_DIR, filename), os.O_CREATE|os.O_RDWR|os.O_APPEND, os.ModePerm)
+func OpenFile(filename string, appendFlag bool) (*os.File, error) {
+	flag := os.O_RDWR | os.O_CREATE
+	if appendFlag {
+		flag |= os.O_APPEND
+	}
+
+	return os.OpenFile(JoinPath(ROOT_DIR, filename), flag, os.ModePerm)
 }
 
-func WriteFile(filename, message string) error {
+func WriteFile(filename string, message string, appendFlag bool) error {
 
-	message = message + "\n"
-
-	file, err := OpenFile(filename)
+	file, err := OpenFile(filename, appendFlag)
 	if err != nil {
 		return err
 	}
@@ -73,56 +77,62 @@ func GetUnixTime(t time.Time) int64 {
 	return date.Unix()
 }
 
-func LoadData() (RemindDatas, error) {
+func LoadData() (RemindDatas, int, error) {
+	changes := false
 	res := make(RemindDatas)
 	now := GetUnixTime(time.Now())
+	lastId := 0
 
 	b, err := ReadFile(APP_DATA_FILENAME)
 	if err != nil {
-		return nil, err
+		return nil, lastId, err
 	}
 
 	err = json.NewDecoder(bytes.NewReader(b)).Decode(&res)
 	if err != nil {
 		if errors.Is(err, io.EOF) {
-			return res, nil
+			return res, lastId, nil
 		}
-		return res, err
+		return res, lastId, err
 	}
 
 	for _, v := range res {
+		if v.Id > lastId {
+			lastId = v.Id
+		}
 		if v.Type == TASK {
 			if v.CheckedAt != "" {
 				t, err := time.Parse(time.DateOnly, v.CheckedAt)
 				if err != nil {
-					return nil, err
+					return nil, lastId, err
 				}
 				checkAt := GetUnixTime(t)
 
 				if now > checkAt {
-					this := res[v.Id]
-					this.CheckedAt = ""
+					changes = true
+					res[v.Id].CheckedAt = ""
 				}
 			}
 
 		}
 	}
 
-	err = DeleteFile(APP_DATA_FILENAME)
-	if err != nil {
-		return nil, err
+	if changes {
+		b, err = json.Marshal(res)
+		if err != nil {
+			return nil, lastId, err
+		}
+
+		err = WriteFile(APP_DATA_FILENAME, string(b), false)
+		if err != nil {
+			return nil, lastId, err
+		}
 	}
 
-	b, err = json.Marshal(res)
-	if err != nil {
-		return nil, err
-	}
+	return res, lastId, err
 
-	err = WriteFile(APP_DATA_FILENAME, string(b))
-	if err != nil {
-		return nil, err
-	}
+}
 
-	return res, err
-
+func TrimSpace(s string) string {
+	return strings.TrimSpace(s)
 }

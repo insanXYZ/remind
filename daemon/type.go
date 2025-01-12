@@ -18,7 +18,7 @@ var (
 
 type (
 	RemindType  string
-	RemindDatas = map[int]RemindData
+	RemindDatas = map[int]*RemindData
 	Id          = int
 )
 
@@ -27,7 +27,20 @@ type RemindData struct {
 	Title     string     `json:"title"`
 	Name      string     `json:"name"`
 	Time      string     `json:"time"`
+	Date      string     `json:"date"`
 	Type      RemindType `json:"type"`
-	Extra     string     `json:"extra"`
 	CheckedAt string     `json:"checked_at"`
+}
+
+type Response struct {
+	Data    any    `json:"data"`
+	Message string `json:"message"`
+}
+
+type CreateRequest struct {
+	Title string `json:"title"`
+	Name  string `json:"name"`
+	Time  string `json:"time"`
+	Date  string `json:"date"`
+	Type  string `json:"type"`
 }
