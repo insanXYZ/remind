@@ -40,19 +40,38 @@ func OpenFile(filename string, appendFlag bool) (*os.File, error) {
 	flag := os.O_RDWR | os.O_CREATE
 	if appendFlag {
 		flag |= os.O_APPEND
+	} else {
+		flag |= os.O_TRUNC
 	}
 
 	return os.OpenFile(JoinPath(ROOT_DIR, filename), flag, os.ModePerm)
 }
 
-func WriteFile(filename string, message string, appendFlag bool) error {
+func WriteFile(filename string, message any, appendFlag bool) error {
+
+	var b []byte
+	var err error
+
+	if filepath.Ext(filename) == ".json" {
+		b, err = json.Marshal(message)
+		if err != nil {
+			return err
+		}
+	} else {
+		b = []byte(message.(string))
+	}
 
 	file, err := OpenFile(filename, appendFlag)
 	if err != nil {
 		return err
 	}
 
-	if _, err = file.Write([]byte(message)); err != nil {
+	if !appendFlag {
+		file.Truncate(0)
+		file.Seek(0, 0)
+	}
+
+	if _, err = file.Write(b); err != nil {
 		return errors.Join(ErrWriteErrorLog, err)
 	}
 	return nil
@@ -118,12 +137,8 @@ func LoadData() (RemindDatas, int, error) {
 	}
 
 	if changes {
-		b, err = json.Marshal(res)
-		if err != nil {
-			return nil, lastId, err
-		}
 
-		err = WriteFile(APP_DATA_FILENAME, string(b), false)
+		err = WriteFile(APP_DATA_FILENAME, res, false)
 		if err != nil {
 			return nil, lastId, err
 		}

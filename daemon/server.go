@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -31,7 +32,7 @@ func (s *Server) incLastId() int {
 
 func (s *Server) initRoute(mux *http.ServeMux) {
 	mux.HandleFunc("GET /", s.ListController)
-	mux.HandleFunc("DELETE /", s.DeleteController)
+	mux.HandleFunc("DELETE /{id}", s.DeleteController)
 	mux.HandleFunc("PATCH /", s.CheckController)
 	mux.HandleFunc("POST /", s.SetController)
 }
@@ -59,6 +60,19 @@ func (s *Server) CheckController(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) DeleteController(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if id == "" {
+		fmt.Fprint(w, "id kudu aya")
+		return
+	}
+
+	err := s.delete(id)
+	if err != nil {
+		fmt.Fprint(w, "error delete")
+		return
+	}
+
+	fmt.Fprint(w, "success delete")
 
 }
 
@@ -75,7 +89,7 @@ func (s *Server) SetController(w http.ResponseWriter, r *http.Request) {
 	req.Name, req.Type, req.Time, req.Date = TrimSpace(req.Name), TrimSpace(req.Type), TrimSpace(req.Time), TrimSpace(req.Date)
 
 	if req.Name == "" {
-		fmt.Fprint(w, err.Error())
+		fmt.Fprint(w, "name kudu aya")
 		return
 	}
 
@@ -124,10 +138,15 @@ func (s *Server) SetController(w http.ResponseWriter, r *http.Request) {
 func (s *Server) Set(data *RemindData) error {
 	s.cacheRemindMap[data.Id] = data
 
-	b, err := json.Marshal(s.cacheRemindMap)
+	return WriteFile(APP_DATA_FILENAME, s.cacheRemindMap, false)
+}
+
+func (s *Server) delete(id string) error {
+	i, err := strconv.Atoi(id)
 	if err != nil {
 		return err
 	}
+	delete(s.cacheRemindMap, i)
 
-	return WriteFile(APP_DATA_FILENAME, string(b), false)
+	return WriteFile(APP_DATA_FILENAME, s.cacheRemindMap, false)
 }
