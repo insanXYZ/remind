@@ -1,22 +1,13 @@
 package main
 
+import "remind/daemon/server"
+
 func main() {
-	err := CreateTempDir()
-	if err != nil {
-		WriteFatalLog(err)
-		return
-	}
 
-	remindDatas, lastId, err := LoadData()
+	s := server.NewServer()
+	err := s.Run()
 	if err != nil {
-		WriteFatalLog(err)
-		return
-	}
-
-	server := NewServer(remindDatas, lastId)
-	err = server.Run()
-	if err != nil {
-		WriteFatalLog(err)
+		panic(err.Error())
 	}
 
 }

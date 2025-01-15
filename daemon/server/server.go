@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"encoding/json"
@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -14,15 +15,25 @@ const (
 )
 
 type Server struct {
+	mux            *http.ServeMux
 	lastId         int
 	cacheRemindMap map[Id]*RemindData
+	mu             sync.Mutex
 }
 
 func NewServer(loadedRemindData map[Id]*RemindData, lastId int) *Server {
-	return &Server{
+	s := &Server{
+		mux:            http.NewServeMux(),
 		lastId:         lastId,
 		cacheRemindMap: loadedRemindData,
 	}
+
+	return s
+
+}
+
+func (s *Server) saveData() {
+	WriteFile(APP_DATA_FILENAME, s.cacheRemindMap, false)
 }
 
 func (s *Server) incLastId() int {
@@ -77,68 +88,33 @@ func (s *Server) DeleteController(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) SetController(w http.ResponseWriter, r *http.Request) {
-	req := new(CreateRequest)
-	now := time.Now()
 
-	err := json.NewDecoder(r.Body).Decode(req)
+	req, err := s.validateSetRequest(r)
 	if err != nil {
 		fmt.Fprint(w, err.Error())
 		return
 	}
 
-	req.Name, req.Type, req.Time, req.Date = TrimSpace(req.Name), TrimSpace(req.Type), TrimSpace(req.Time), TrimSpace(req.Date)
-
-	if req.Name == "" {
-		fmt.Fprint(w, "name kudu aya")
-		return
+	remindData := &RemindData{
+		Id:   s.incLastId(),
+		Name: req.Name,
+		Time: req.Time,
+		Date: req.Date,
+		Type: RemindType(req.Type),
 	}
 
 	if strings.Contains(req.Name, ":") {
-		split := strings.Split(req.Name, ":")
-		if len(split) > 1 {
-			req.Title = split[0]
-			req.Name = split[1]
-		} else {
-			req.Name = split[0]
+		splits := strings.Split(req.Name, ":")
+		if len(splits) > 1 {
+			remindData.Title, remindData.Name = splits[0], splits[1]
 		}
 	}
 
-	if req.Type == "" {
-		req.Type = string(ALARM)
-	}
-
-	if req.Type == string(ALARM) || req.Type == string(TASK) {
-		if req.Date == "" {
-			req.Date = now.Format(time.DateOnly)
-		}
-
-		remindData := &RemindData{
-			Id:    s.incLastId(),
-			Title: req.Title,
-			Name:  req.Name,
-			Time:  req.Time,
-			Date:  req.Date,
-			Type:  RemindType(req.Type),
-		}
-
-		err = s.Set(remindData)
-		if err != nil {
-			fmt.Fprint(w, err.Error())
-		}
-		fmt.Fprint(w, SuccSetRemind)
-
-	} else {
-		fmt.Fprint(w, ErrSetRemind)
-		fmt.Fprint(w, ErrWrongType)
-		return
-	}
-
+	s.Set(remindData)
 }
 
-func (s *Server) Set(data *RemindData) error {
+func (s *Server) Set(data *RemindData) {
 	s.cacheRemindMap[data.Id] = data
-
-	return WriteFile(APP_DATA_FILENAME, s.cacheRemindMap, false)
 }
 
 func (s *Server) delete(id string) error {
@@ -147,6 +123,41 @@ func (s *Server) delete(id string) error {
 		return err
 	}
 	delete(s.cacheRemindMap, i)
+	return nil
+}
 
-	return WriteFile(APP_DATA_FILENAME, s.cacheRemindMap, false)
+// VALIDATOR
+func (s *Server) validateSetRequest(req *http.Request) (*CreateRequest, error) {
+	r := new(CreateRequest)
+	now := time.Now()
+
+	err := json.NewDecoder(req.Body).Decode(r)
+	if err != nil {
+		return nil, err
+	}
+
+	r.Name, r.Type, r.Date, r.Time = TrimSpace(r.Name), TrimSpace(r.Type), TrimSpace(r.Date), TrimSpace(r.Time)+":00"
+
+	if r.Name == "" {
+		return nil, ErrValidateNameRequired
+	}
+
+	if r.Type == "" {
+		r.Type = string(ALARM)
+	} else if r.Type != string(ALARM) && r.Type != string(TASK) {
+		return nil, ErrWrongType
+	}
+
+	if r.Date != "" {
+		if r.Date != "every-day" {
+			if _, err := time.Parse(time.DateOnly, r.Date); err != nil {
+				return nil, ErrWrongDate
+			}
+		}
+	} else {
+		r.Date = now.Format(time.DateOnly)
+	}
+
+	return r, nil
+
 }

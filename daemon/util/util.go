@@ -1,4 +1,4 @@
-package main
+package util
 
 import (
 	"bytes"
@@ -12,18 +12,6 @@ import (
 	"time"
 )
 
-func ReadFile(filename string) ([]byte, error) {
-	file, err := OpenFile(filename, false)
-	if err != nil {
-		return nil, err
-	}
-	return io.ReadAll(file)
-}
-
-func ReadDir(path string) ([]os.DirEntry, error) {
-	return os.ReadDir(path)
-}
-
 func JoinPath(strings ...string) string {
 	return filepath.Join(strings...)
 }
@@ -34,17 +22,6 @@ func WriteLog(message string) {
 
 func WriteFatalLog(err error) {
 	log.Fatal(err)
-}
-
-func OpenFile(filename string, appendFlag bool) (*os.File, error) {
-	flag := os.O_RDWR | os.O_CREATE
-	if appendFlag {
-		flag |= os.O_APPEND
-	} else {
-		flag |= os.O_TRUNC
-	}
-
-	return os.OpenFile(JoinPath(ROOT_DIR, filename), flag, os.ModePerm)
 }
 
 func WriteFile(filename string, message any, appendFlag bool) error {
@@ -64,11 +41,6 @@ func WriteFile(filename string, message any, appendFlag bool) error {
 	file, err := OpenFile(filename, appendFlag)
 	if err != nil {
 		return err
-	}
-
-	if !appendFlag {
-		file.Truncate(0)
-		file.Seek(0, 0)
 	}
 
 	if _, err = file.Write(b); err != nil {
