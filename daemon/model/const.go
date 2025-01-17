@@ -6,8 +6,7 @@ import (
 )
 
 const (
-	ALARM RemindType = "alarm"
-	TASK  RemindType = "task"
+	EVERY_DAY_DATE = "every-day"
 )
 
 var (
@@ -18,7 +17,5 @@ var (
 )
 
 type (
-	RemindType  string
 	RemindDatas = map[int]*RemindData
-	Id          = int
 )

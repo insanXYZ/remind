@@ -1,13 +1,12 @@
 package model
 
 type RemindData struct {
-	Id        int        `json:"id"`
-	Title     string     `json:"title"`
-	Name      string     `json:"name"`
-	Time      string     `json:"time"`
-	Date      string     `json:"date"`
-	Type      RemindType `json:"type"`
-	CheckedAt string     `json:"checked_at"`
+	Id        int    `json:"id"`
+	Title     string `json:"title"`
+	Name      string `json:"name"`
+	Time      string `json:"time"`
+	Date      string `json:"date"`
+	CheckedAt string `json:"checked_at"`
 }
 
 type Response struct {
@@ -19,5 +18,4 @@ type CreateRequest struct {
 	Name string `json:"name"`
 	Time string `json:"time"`
 	Date string `json:"date"`
-	Type string `json:"type"`
 }

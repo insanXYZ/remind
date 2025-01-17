@@ -1,13 +1,14 @@
 package util
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"io"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"remind-daemon/model"
 	"strings"
 	"time"
 )
@@ -20,46 +21,27 @@ func WriteLog(message string) {
 	log.Println(message)
 }
 
-func WriteFatalLog(err error) {
-	log.Fatal(err)
-}
-
-func WriteFile(filename string, message any, appendFlag bool) error {
-
-	var b []byte
-	var err error
-
-	if filepath.Ext(filename) == ".json" {
-		b, err = json.Marshal(message)
-		if err != nil {
-			return err
-		}
-	} else {
-		b = []byte(message.(string))
-	}
-
+func WriteFile(filename string, message string, appendFlag bool) error {
 	file, err := OpenFile(filename, appendFlag)
 	if err != nil {
 		return err
 	}
 
-	if _, err = file.Write(b); err != nil {
-		return errors.Join(ErrWriteErrorLog, err)
+	defer file.Close()
+
+	if _, err = file.WriteString(message); err != nil {
+		return errors.Join(model.ErrWriteErrorLog, err)
 	}
 	return nil
 }
 
-func DeleteFile(filename string) error {
-	return os.Remove(JoinPath(ROOT_DIR, filename))
-}
-
 func CreateTempDir() error {
-	if _, err := ReadDir(ROOT_DIR); err != nil && errors.Is(err, os.ErrNotExist) {
-		if err = os.Mkdir(ROOT_DIR, os.ModePerm); err != nil {
-			return errors.Join(ErrCreateTmpDir, err)
+	if _, err := ReadDir(model.ROOT_DIR); err != nil && errors.Is(err, os.ErrNotExist) {
+		if err = os.Mkdir(model.ROOT_DIR, os.ModePerm); err != nil {
+			return errors.Join(model.ErrCreateTmpDir, err)
 		}
 	}
-	WriteLog(SuccCreateTmpDir)
+	WriteLog(model.SuccCreateTmpDir)
 	return nil
 }
 
@@ -68,58 +50,44 @@ func GetUnixTime(t time.Time) int64 {
 	return date.Unix()
 }
 
-func LoadData() (RemindDatas, int, error) {
-	changes := false
-	res := make(RemindDatas)
-	now := GetUnixTime(time.Now())
-	lastId := 0
+func OpenFile(filename string, appendFlag bool) (*os.File, error) {
+	flag := os.O_RDWR | os.O_CREATE
+	if appendFlag {
+		flag |= os.O_APPEND
+	} else {
+		flag |= os.O_TRUNC
+	}
 
-	b, err := ReadFile(APP_DATA_FILENAME)
+	return os.OpenFile(JoinPath(model.ROOT_DIR, filename), flag, os.ModePerm)
+}
+
+func ReadFile(filename string) ([]byte, error) {
+	file, err := OpenFile(filename, true)
 	if err != nil {
-		return nil, lastId, err
+		return nil, err
 	}
+	defer file.Close()
+	return io.ReadAll(file)
+}
 
-	err = json.NewDecoder(bytes.NewReader(b)).Decode(&res)
+func ReadDir(path string) ([]os.DirEntry, error) {
+	return os.ReadDir(path)
+}
+
+func SendNotif(title, name string) error {
+	cmd := exec.Command("bash", "-c", title, name)
+	return cmd.Run()
+}
+
+func StructToJsonString(data any) (string, error) {
+	b, err := json.Marshal(data)
 	if err != nil {
-		if errors.Is(err, io.EOF) {
-			return res, lastId, nil
-		}
-		return res, lastId, err
+		return "", err
 	}
 
-	for _, v := range res {
-		if v.Id > lastId {
-			lastId = v.Id
-		}
-		if v.Type == TASK {
-			if v.CheckedAt != "" {
-				t, err := time.Parse(time.DateOnly, v.CheckedAt)
-				if err != nil {
-					return nil, lastId, err
-				}
-				checkAt := GetUnixTime(t)
-
-				if now > checkAt {
-					changes = true
-					res[v.Id].CheckedAt = ""
-				}
-			}
-
-		}
-	}
-
-	if changes {
-
-		err = WriteFile(APP_DATA_FILENAME, res, false)
-		if err != nil {
-			return nil, lastId, err
-		}
-	}
-
-	return res, lastId, err
-
+	return string(b), err
 }
 
 func TrimSpace(s string) string {
-	return strings.TrimSpace(s)
+	return strings.Trim(s, " ")
 }
