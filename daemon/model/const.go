@@ -7,6 +7,7 @@ import (
 
 const (
 	EVERY_DAY_DATE = "every-day"
+	APP_NAME       = "remind"
 )
 
 var (

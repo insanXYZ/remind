@@ -11,6 +11,7 @@ var (
 	ErrSetRemind            = errors.New("failed set remind")
 	ErrWrongType            = errors.New("wrong type")
 	ErrWrongDate            = errors.New("wrong date")
+	ErrWrongTime            = errors.New("wrong time format")
 	ErrValidateNameRequired = errors.New("name required")
 	ErrIdRequired           = errors.New("id required")
 	SuccCreateTmpDir        = "success create tmp dir"

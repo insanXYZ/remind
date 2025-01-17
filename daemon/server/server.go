@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os/exec"
 	"remind-daemon/model"
 	"remind-daemon/util"
 	"strconv"
@@ -14,7 +15,7 @@ import (
 )
 
 const (
-	APP_PORT = ":3124"
+	AppPort = ":5555"
 )
 
 type Server struct {
@@ -28,6 +29,8 @@ func NewServer() *Server {
 		mux:            http.NewServeMux(),
 		cacheRemindMap: make(model.RemindDatas),
 	}
+
+	go s.tickRemind()
 
 	return s
 }
@@ -105,8 +108,8 @@ func (s *Server) Run() error {
 		return err
 	}
 
-	util.WriteLog(fmt.Sprintf(model.SuccRunServer+" , port %s", APP_PORT))
-	return http.ListenAndServe(APP_PORT, s.mux)
+	util.WriteLog(fmt.Sprintf(model.SuccRunServer+" , port %s", AppPort))
+	return http.ListenAndServe(AppPort, s.mux)
 }
 
 func (s *Server) set(data *model.RemindData) error {
@@ -169,6 +172,7 @@ func (s *Server) saveData() error {
 }
 
 func (s *Server) giveResponse(w http.ResponseWriter, statusCode int, data any, message string) error {
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 
 	m, err := util.StructToJsonString(model.Response{
@@ -182,6 +186,41 @@ func (s *Server) giveResponse(w http.ResponseWriter, statusCode int, data any, m
 
 	_, err = w.Write([]byte(m))
 	return err
+}
+
+func (s *Server) tickRemind() {
+	tick := time.NewTicker(1 * time.Second)
+
+	for t := range tick.C {
+
+		go func() {
+
+			date := t.Format(time.DateOnly)
+			clock := t.Format(time.TimeOnly)
+
+			for _, v := range s.cacheRemindMap {
+				if v.Date == model.EVERY_DAY_DATE || v.Date == date {
+					if v.Time == clock {
+						err := s.notify(v.Title, v.Name)
+						if err != nil {
+							fmt.Println(err.Error())
+						}
+					}
+				}
+			}
+		}()
+
+	}
+}
+
+func (s *Server) notify(title, name string) error {
+	if title == "" {
+		title = model.APP_NAME
+	}
+
+	cmd := exec.Command("bash", "-c", fmt.Sprintf("dunstify %s %s", title, name))
+	return cmd.Run()
+
 }
 
 // VALIDATOR
@@ -200,10 +239,16 @@ func (s *Server) validateSetRequest(req *http.Request) (*model.CreateRequest, er
 		return nil, model.ErrValidateNameRequired
 	}
 
+	if r.Time != "" {
+		if _, err := time.Parse(time.TimeOnly, r.Time); err != nil {
+			return r, model.ErrWrongTime
+		}
+	}
+
 	if r.Date != "" {
-		if r.Date != model.EVERY_DAY_DATE {
-			if _, err := time.Parse(time.DateOnly, r.Date); err != nil {
-				return nil, model.ErrWrongDate
+		if _, err := time.Parse(time.DateOnly, r.Date); err != nil {
+			if r.Date != model.EVERY_DAY_DATE {
+				return r, model.ErrWrongDate
 			}
 		}
 	} else {
