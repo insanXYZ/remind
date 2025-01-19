@@ -42,7 +42,8 @@ func (s *Server) incLastId() int {
 
 func (s *Server) loadData() error {
 	changes := false
-	now := util.GetUnixTime(time.Now())
+	missed := 0
+	now := time.Now()
 
 	b, err := util.ReadFile(model.APP_DATA_FILENAME)
 	if err != nil {
@@ -61,19 +62,42 @@ func (s *Server) loadData() error {
 		if v.Id > s.lastId {
 			s.lastId = v.Id
 		}
-		if v.CheckedAt != "" {
+
+		if v.CheckedAt != "" && (v.Date == model.EVERY_DAY_DATE || v.Date == time.Now().Format(time.DateOnly)) {
 			t, err := time.Parse(time.DateOnly, v.CheckedAt)
 			if err != nil {
 				return err
 			}
-			checkAt := util.GetUnixTime(t)
 
-			if now > checkAt {
+			if util.GetUnixTime(util.GetStartOfDay()) > util.GetUnixTime(t) {
 				changes = true
 				s.cacheRemindMap[v.Id].CheckedAt = ""
 			}
 		}
 
+		if v.CheckedAt == "" && (v.Date == model.EVERY_DAY_DATE || v.Date == time.Now().Format(time.DateOnly)) {
+
+			if v.Time == "" {
+
+				fmt.Println("missed", v.Id)
+				missed++
+			} else {
+
+				p, _ := time.Parse(time.TimeOnly, v.Time)
+
+				d := time.Date(now.Year(), now.Month(), now.Day(), p.Hour(), p.Minute(), p.Second(), 0, now.Location())
+
+				fmt.Println("id ", v.Id, "date ", d.Format(time.DateTime))
+
+				if util.GetUnixTime(now) > util.GetUnixTime(d) {
+					fmt.Println("missed", v.Id)
+					missed++
+				} else {
+					fmt.Println(util.GetUnixTime(now), "less than", util.GetUnixTime(d), d.Format(time.DateTime))
+				}
+
+			}
+		}
 	}
 
 	if changes {
@@ -84,6 +108,13 @@ func (s *Server) loadData() error {
 		}
 
 		err = util.WriteFile(model.APP_DATA_FILENAME, m, false)
+		if err != nil {
+			return err
+		}
+	}
+
+	if missed != 0 {
+		err = s.notify("", fmt.Sprintf("you have %v missed remind", missed))
 		if err != nil {
 			return err
 		}
@@ -218,7 +249,9 @@ func (s *Server) notify(title, name string) error {
 		title = model.APP_NAME
 	}
 
-	cmd := exec.Command("bash", "-c", fmt.Sprintf("dunstify %s %s", title, name))
+	dunst := fmt.Sprintf("dunstify \"%s\" \"%s\"", title, name)
+
+	cmd := exec.Command("bash", "-c", dunst)
 	return cmd.Run()
 
 }
@@ -233,16 +266,20 @@ func (s *Server) validateSetRequest(req *http.Request) (*model.CreateRequest, er
 		return nil, err
 	}
 
-	r.Name, r.Date, r.Time = util.TrimSpace(r.Name), util.TrimSpace(r.Date), util.TrimSpace(r.Time)+":00"
+	r.Name, r.Date = util.TrimSpace(r.Name), util.TrimSpace(r.Date)
 
 	if r.Name == "" {
 		return nil, model.ErrValidateNameRequired
 	}
 
 	if r.Time != "" {
+
+		r.Time = util.TrimSpace(r.Time) + ":00"
+
 		if _, err := time.Parse(time.TimeOnly, r.Time); err != nil {
 			return r, model.ErrWrongTime
 		}
+
 	}
 
 	if r.Date != "" {

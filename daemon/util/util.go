@@ -91,3 +91,8 @@ func StructToJsonString(data any) (string, error) {
 func TrimSpace(s string) string {
 	return strings.Trim(s, " ")
 }
+
+func GetStartOfDay() time.Time {
+	t, _ := time.Parse(time.DateOnly, time.Now().Format(time.DateOnly))
+	return t
+}
