@@ -45,11 +45,6 @@ func CreateTempDir() error {
 	return nil
 }
 
-func GetUnixTime(t time.Time) int64 {
-	date := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
-	return date.Unix()
-}
-
 func OpenFile(filename string, appendFlag bool) (*os.File, error) {
 	flag := os.O_RDWR | os.O_CREATE
 	if appendFlag {

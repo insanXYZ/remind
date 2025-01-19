@@ -45,12 +45,12 @@ func (s *Server) loadData() error {
 	missed := 0
 	now := time.Now()
 
-	b, err := util.ReadFile(model.APP_DATA_FILENAME)
+	file, err := util.ReadFile(model.APP_DATA_FILENAME)
 	if err != nil {
 		return err
 	}
 
-	err = json.NewDecoder(bytes.NewReader(b)).Decode(&s.cacheRemindMap)
+	err = json.NewDecoder(bytes.NewReader(file)).Decode(&s.cacheRemindMap)
 	if err != nil {
 		if errors.Is(err, io.EOF) {
 			return nil
@@ -69,7 +69,7 @@ func (s *Server) loadData() error {
 				return err
 			}
 
-			if util.GetUnixTime(util.GetStartOfDay()) > util.GetUnixTime(t) {
+			if util.GetStartOfDay().Unix() > t.Unix() {
 				changes = true
 				s.cacheRemindMap[v.Id].CheckedAt = ""
 			}
@@ -78,27 +78,28 @@ func (s *Server) loadData() error {
 		if v.CheckedAt == "" && (v.Date == model.EVERY_DAY_DATE || v.Date == time.Now().Format(time.DateOnly)) {
 
 			if v.Time == "" {
-
-				fmt.Println("missed", v.Id)
 				missed++
 			} else {
 
-				p, _ := time.Parse(time.TimeOnly, v.Time)
+				p, err := time.Parse(time.TimeOnly, v.Time)
 
-				d := time.Date(now.Year(), now.Month(), now.Day(), p.Hour(), p.Minute(), p.Second(), 0, now.Location())
-
-				fmt.Println("id ", v.Id, "date ", d.Format(time.DateTime))
-
-				if util.GetUnixTime(now) > util.GetUnixTime(d) {
-					fmt.Println("missed", v.Id)
-					missed++
-				} else {
-					fmt.Println(util.GetUnixTime(now), "less than", util.GetUnixTime(d), d.Format(time.DateTime))
+				if err != nil {
+					return err
 				}
 
+				d := time.Date(now.Year(), now.Month(), now.Day(), p.Hour(), p.Minute(), p.Second(), 0, now.Location())
+				if now.Unix() > d.Unix() {
+					missed++
+				}
 			}
 		}
 	}
+
+	go func() {
+		if missed != 0 {
+			s.notify("", fmt.Sprintf("you have %v missed remind", missed))
+		}
+	}()
 
 	if changes {
 
@@ -108,13 +109,6 @@ func (s *Server) loadData() error {
 		}
 
 		err = util.WriteFile(model.APP_DATA_FILENAME, m, false)
-		if err != nil {
-			return err
-		}
-	}
-
-	if missed != 0 {
-		err = s.notify("", fmt.Sprintf("you have %v missed remind", missed))
 		if err != nil {
 			return err
 		}
