@@ -10,11 +10,6 @@ const (
 	DaemonEndp = "http://localhost:5555"
 )
 
-type Response struct {
-	Message string `json:"message"`
-	Data    any    `json:"data"`
-}
-
 func CreateRequest(method, url string, body io.Reader) (*Response, error) {
 	var response *Response
 

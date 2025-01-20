@@ -1,8 +1,13 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
+	"os"
+	"strconv"
+
+	"github.com/olekukonko/tablewriter"
 )
 
 func ExecuteHandler(flagUsed Flag, attr *FlagAttr) error {
@@ -27,6 +32,73 @@ func LsHandler(attr *FlagAttr) error {
 	if err != nil {
 		return err
 	}
+
+	if res.Data == nil {
+		fmt.Println("remind empty")
+		return nil
+	}
+
+	sl, ok := res.Data.([]any)
+	if !ok {
+		return errors.New("error processing data")
+	}
+
+	var remindDatas [][]string
+
+	for _, v := range sl {
+		remindData, ok := v.(map[string]any)
+		if !ok {
+			return errors.New("error processing data")
+		}
+
+		var rowTable []string
+
+		if v, ok := remindData["id"].(float64); ok {
+			rowTable = append(rowTable, strconv.Itoa(int(v)))
+		} else {
+			rowTable = append(rowTable, "")
+		}
+
+		if v, ok := remindData["title"].(string); ok {
+			rowTable = append(rowTable, v)
+		} else {
+			rowTable = append(rowTable, "")
+		}
+
+		if v, ok := remindData["name"].(string); ok {
+			rowTable = append(rowTable, v)
+		} else {
+			rowTable = append(rowTable, "")
+		}
+
+		if v, ok := remindData["date"].(string); ok {
+			rowTable = append(rowTable, v)
+		} else {
+			rowTable = append(rowTable, "")
+		}
+
+		if v, ok := remindData["time"].(string); ok {
+			rowTable = append(rowTable, v)
+		} else {
+			rowTable = append(rowTable, "")
+		}
+
+		if v, ok := remindData["checked_at"].(string); ok {
+			if v != "" {
+				v = "  X  "
+			}
+			rowTable = append(rowTable, v)
+		} else {
+			rowTable = append(rowTable, "")
+		}
+
+		remindDatas = append(remindDatas, rowTable)
+	}
+
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetHeader([]string{"id", "title", "name", "date", "time", "check"})
+	table.AppendBulk(remindDatas)
+	table.Render()
 
 	return nil
 }

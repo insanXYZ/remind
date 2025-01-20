@@ -7,7 +7,13 @@ import (
 )
 
 func (s *Server) listController(w http.ResponseWriter, r *http.Request) {
-	s.giveResponse(w, 200, s.cacheRemindMap, model.SuccGetAllRemind)
+	var arrRemind []model.RemindData
+
+	for _, v := range s.cacheRemindMap {
+		arrRemind = append(arrRemind, *v)
+	}
+
+	s.giveResponse(w, 200, arrRemind, model.SuccGetAllRemind)
 }
 
 func (s *Server) checkController(w http.ResponseWriter, r *http.Request) {
