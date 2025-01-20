@@ -1,7 +1,7 @@
 package model
 
 type RemindData struct {
-	Id        int    `json:"id"`
+	Id        int    `json:"-"`
 	Title     string `json:"title"`
 	Name      string `json:"name"`
 	Time      string `json:"time"` //time.Timeonly

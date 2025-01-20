@@ -21,7 +21,7 @@ const (
 	DELETE      = "delete"
 	CHECK       = "check"
 	LS          = "ls"
-	HELP        = "help"
+	HELP        = "--help"
 )
 
 type FlagAttr struct {
@@ -64,13 +64,12 @@ func initFlag(flagAttr *FlagAttr) (Flag, error) {
 	checkFlag := flag.NewFlagSet(CHECK, flag.ExitOnError)
 	flagMap[CHECK] = checkFlag
 	checkFlag.StringVar(&flagAttr.checkId, "id", "", "assign id for checked")
-	checkFlag.BoolVar(&flagAttr.checkIsRemove, "rm", false, "optional flag for remove check on remind")
+	checkFlag.BoolVar(&flagAttr.checkIsRemove, "u", false, "optional flag for remove check on remind")
 
 	lsFlag := flag.NewFlagSet(LS, flag.ExitOnError)
 	flagMap[LS] = lsFlag
 
-	helpFlag := flag.NewFlagSet(HELP, flag.ExitOnError)
-	flagMap[HELP] = helpFlag
+	flagMap[HELP] = nil
 
 	if len(os.Args) < 2 {
 		return "", errors.Join(ErrMissingArgument, ErrInformation)
@@ -81,6 +80,10 @@ func initFlag(flagAttr *FlagAttr) (Flag, error) {
 
 	if !ok {
 		return "", errors.Join(ErrWrongArgument, ErrInformation)
+	}
+
+	if f == nil {
+		return flagUsed, nil
 	}
 
 	return flagUsed, f.Parse(os.Args[2:])
