@@ -152,7 +152,7 @@ func (s *Server) delete(id string) error {
 	_, ok := s.cacheRemindMap[i]
 
 	if !ok {
-		return fmt.Errorf("id with %v doesnt exist", i)
+		return fmt.Errorf("remind with id %v doesnt exist", i)
 	}
 
 	delete(s.cacheRemindMap, i)
@@ -169,7 +169,7 @@ func (s *Server) check(id string, rflag bool) error {
 	v, ok := s.cacheRemindMap[i]
 
 	if !ok {
-		return fmt.Errorf("id with %v doesnt exist", i)
+		return fmt.Errorf("remind with id %v doesnt exist", i)
 	}
 
 	if rflag {
@@ -251,8 +251,8 @@ func (s *Server) notify(title, name string) error {
 }
 
 // VALIDATOR
-func (s *Server) validateSetRequest(req *http.Request) (*model.CreateRequest, error) {
-	r := new(model.CreateRequest)
+func (s *Server) validateSetRequest(req *http.Request) (*model.SetRequest, error) {
+	r := new(model.SetRequest)
 	now := time.Now()
 
 	err := json.NewDecoder(req.Body).Decode(r)

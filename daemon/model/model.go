@@ -14,7 +14,7 @@ type Response struct {
 	Message string `json:"message"`
 }
 
-type CreateRequest struct {
+type SetRequest struct {
 	Name string `json:"name"`
 	Time string `json:"time"`
 	Date string `json:"date"`

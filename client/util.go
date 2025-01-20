@@ -10,10 +10,10 @@ const (
 	DaemonEndp = "http://localhost:5555"
 )
 
-func CreateRequest(method, url string, body io.Reader) (*Response, error) {
+func NewRequest(method, url string, body io.Reader) (*Response, error) {
 	var response *Response
 
-	req, err := http.NewRequest(method, DaemonEndp, body)
+	req, err := http.NewRequest(method, DaemonEndp+url, body)
 	if err != nil {
 		return nil, err
 	}
