@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os/exec"
 	"remind-daemon/model"
@@ -47,11 +48,13 @@ func (s *Server) loadData() error {
 
 	file, err := util.ReadFile(model.APP_DATA_FILENAME)
 	if err != nil {
+		log.Println(err.Error())
 		return err
 	}
 
 	err = json.NewDecoder(bytes.NewReader(file)).Decode(&s.cacheRemindMap)
 	if err != nil {
+		log.Println(err.Error())
 		if errors.Is(err, io.EOF) {
 			return nil
 		}
@@ -66,6 +69,7 @@ func (s *Server) loadData() error {
 		if v.CheckedAt != "" && (v.Date == model.EVERY_DAY_DATE || v.Date == time.Now().Format(time.DateOnly)) {
 			t, err := time.Parse(time.DateOnly, v.CheckedAt)
 			if err != nil {
+				log.Println(err.Error())
 				return err
 			}
 
@@ -84,6 +88,7 @@ func (s *Server) loadData() error {
 				p, err := time.Parse(time.TimeOnly, v.Time)
 
 				if err != nil {
+					log.Println(err.Error())
 					return err
 				}
 
@@ -97,7 +102,16 @@ func (s *Server) loadData() error {
 
 	go func() {
 		if missed != 0 {
-			s.notify("", fmt.Sprintf("you have %v missed remind", missed))
+			go func() {
+				for i := 0; i < 20; i++ {
+					err := s.notify("", fmt.Sprintf("you have %v missed remind", missed))
+					if err == nil {
+						return
+					} else {
+						time.Sleep(5 * time.Second)
+					}
+				}
+			}()
 		}
 	}()
 
@@ -105,11 +119,13 @@ func (s *Server) loadData() error {
 
 		m, err := util.StructToJsonString(s.cacheRemindMap)
 		if err != nil {
+			log.Println(err.Error())
 			return err
 		}
 
 		err = util.WriteFile(model.APP_DATA_FILENAME, m, false)
 		if err != nil {
+			log.Println(err.Error())
 			return err
 		}
 	}
@@ -130,6 +146,7 @@ func (s *Server) Run() error {
 
 	err := s.loadData()
 	if err != nil {
+		log.Println(err.Error())
 		return err
 	}
 
@@ -146,6 +163,7 @@ func (s *Server) set(data *model.RemindData) error {
 func (s *Server) delete(id string) error {
 	i, err := strconv.Atoi(id)
 	if err != nil {
+		log.Println(err.Error())
 		return err
 	}
 
@@ -163,6 +181,7 @@ func (s *Server) delete(id string) error {
 func (s *Server) check(id string, rflag bool) error {
 	i, err := strconv.Atoi(id)
 	if err != nil {
+		log.Println(err.Error())
 		return err
 	}
 
@@ -185,12 +204,14 @@ func (s *Server) check(id string, rflag bool) error {
 func (s *Server) saveData() error {
 	m, err := util.StructToJsonString(s.cacheRemindMap)
 	if err != nil {
+		log.Println(err.Error())
 		return err
 	}
 
 	err = util.WriteFile(model.APP_DATA_FILENAME, m, false)
 	if err != nil {
-		util.WriteLog(err.Error())
+		log.Println(err.Error())
+		// util.WriteLog(err.Error())
 		return err
 	}
 	return nil
@@ -206,6 +227,7 @@ func (s *Server) giveResponse(w http.ResponseWriter, statusCode int, data any, m
 	})
 
 	if err != nil {
+		log.Println(err.Error())
 		return err
 	}
 
@@ -228,7 +250,7 @@ func (s *Server) tickRemind() {
 					if v.Time == clock {
 						err := s.notify(v.Title, v.Name)
 						if err != nil {
-							fmt.Println(err.Error())
+							log.Println(err.Error())
 						}
 					}
 				}
@@ -243,9 +265,11 @@ func (s *Server) notify(title, name string) error {
 		title = model.APP_NAME
 	}
 
-	dunst := fmt.Sprintf("notify-send \"%s\" \"%s\"", title, name)
+	log.Println("run notify action")
 
-	cmd := exec.Command("bash", "-c", dunst)
+	notifyMessage := fmt.Sprintf("notify-send \"%s\" \"%s\"", title, name)
+
+	cmd := exec.Command("bash", "-c", notifyMessage)
 	return cmd.Run()
 
 }
@@ -257,6 +281,7 @@ func (s *Server) validateSetRequest(req *http.Request) (*model.SetRequest, error
 
 	err := json.NewDecoder(req.Body).Decode(r)
 	if err != nil {
+		log.Println(err.Error())
 		return nil, err
 	}
 
@@ -271,6 +296,7 @@ func (s *Server) validateSetRequest(req *http.Request) (*model.SetRequest, error
 		r.Time = util.TrimSpace(r.Time) + ":00"
 
 		if _, err := time.Parse(time.TimeOnly, r.Time); err != nil {
+			log.Println(err.Error())
 			return r, model.ErrWrongTime
 		}
 

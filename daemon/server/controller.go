@@ -1,6 +1,7 @@
 package server
 
 import (
+	"log"
 	"net/http"
 	"remind-daemon/model"
 	"strings"
@@ -26,6 +27,7 @@ func (s *Server) checkController(w http.ResponseWriter, r *http.Request) {
 	rflag := r.URL.Query().Has("r")
 
 	if err := s.check(id, rflag); err != nil {
+		log.Println(err.Error())
 		s.giveResponse(w, 400, nil, err.Error())
 		return
 	}
@@ -43,6 +45,7 @@ func (s *Server) deleteController(w http.ResponseWriter, r *http.Request) {
 
 	err := s.delete(id)
 	if err != nil {
+		log.Println(err.Error())
 		s.giveResponse(w, 400, nil, err.Error())
 		return
 	}
@@ -54,6 +57,7 @@ func (s *Server) setController(w http.ResponseWriter, r *http.Request) {
 
 	req, err := s.validateSetRequest(r)
 	if err != nil {
+		log.Println(err.Error())
 		s.giveResponse(w, 400, nil, err.Error())
 		return
 	}
@@ -73,6 +77,7 @@ func (s *Server) setController(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.set(remindData); err != nil {
+		log.Println(err.Error())
 		s.giveResponse(w, 400, nil, err.Error())
 		return
 	}

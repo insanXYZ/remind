@@ -24,12 +24,14 @@ func WriteLog(message string) {
 func WriteFile(filename string, message string, appendFlag bool) error {
 	file, err := OpenFile(filename, appendFlag)
 	if err != nil {
+		log.Println(err.Error())
 		return err
 	}
 
 	defer file.Close()
 
 	if _, err = file.WriteString(message); err != nil {
+		log.Println(err.Error())
 		return errors.Join(model.ErrWriteErrorLog, err)
 	}
 	return nil
@@ -38,6 +40,7 @@ func WriteFile(filename string, message string, appendFlag bool) error {
 func CreateTempDir() error {
 	if _, err := ReadDir(model.ROOT_DIR); err != nil && errors.Is(err, os.ErrNotExist) {
 		if err = os.Mkdir(model.ROOT_DIR, os.ModePerm); err != nil {
+			log.Println(err.Error())
 			return errors.Join(model.ErrCreateTmpDir, err)
 		}
 	}
@@ -59,6 +62,7 @@ func OpenFile(filename string, appendFlag bool) (*os.File, error) {
 func ReadFile(filename string) ([]byte, error) {
 	file, err := OpenFile(filename, true)
 	if err != nil {
+		log.Println(err.Error())
 		return nil, err
 	}
 	defer file.Close()
@@ -77,6 +81,7 @@ func SendNotif(title, name string) error {
 func StructToJsonString(data any) (string, error) {
 	b, err := json.Marshal(data)
 	if err != nil {
+		log.Println(err.Error())
 		return "", err
 	}
 
