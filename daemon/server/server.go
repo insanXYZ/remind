@@ -243,7 +243,7 @@ func (s *Server) notify(title, name string) error {
 		title = model.APP_NAME
 	}
 
-	dunst := fmt.Sprintf("dunstify \"%s\" \"%s\"", title, name)
+	dunst := fmt.Sprintf("notify-send \"%s\" \"%s\"", title, name)
 
 	cmd := exec.Command("bash", "-c", dunst)
 	return cmd.Run()
