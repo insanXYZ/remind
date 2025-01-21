@@ -4,7 +4,8 @@
 
 # Remind - reminder tool on your linux
 
-<video src="https://github.com/user-attachments/assets/918f7ee4-dd2a-4381-b605-da91a8988702"/>
+https://github.com/user-attachments/assets/86ae286b-a2c7-4629-af8b-d8a6688712de
+
 
 # 💾 Installation
 Before you install it, you must have the ``notify-send`` dependency. 
